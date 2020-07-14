@@ -1,0 +1,32 @@
+\begin{table}
+    \begin{center}
+        \begin{tabular} {l | c | l  }
+            \toprule[1pt]
+            %{\bf Method} 
+            {\bf Network} & {\bf Rectified} & {\bf acc\%} \\ 
+            \hline
+            \multirow{2}{*}{ResNet-50~\cite{he2015deep}} &  & 76.48 \\
+            %\cdashline{2-3}
+             & \checkmark & 77.10 (+0.62) \\
+            \hdashline
+            \multirow{2}{*}{ResNet-101~\cite{he2015deep}} & & 78.13 \\
+            & \checkmark & 78.74 (+0.41) \\
+            \hdashline
+            \multirow{2}{*}{ResNeXt-50~\cite{xie2016aggregated}} & & 78.17 \\
+            & \checkmark & 78.48 (+0.31) \\
+            \hdashline
+            % \multirow{2}{*}{ResNeSt-50~\cite{zhang2020resnest}} & & 78.55 \\
+            % & \checkmark & 79.17 (+0.62) \\
+            % \hdashline
+            \multirow{2}{*}{RegNetX-4GF~\cite{radosavovic2020designing}} & & 79.03 \\
+            & \checkmark & 79.35 (+0.33) \\
+            \hdashline
+            \multirow{2}{*}{ResNeSt-50$\dagger$~\cite{zhang2020resnest}} & & 78.73 \\
+            & \checkmark & 79.38 (+0.65) \\
+            \bottomrule[1pt]
+        \end{tabular}
+    \end{center}   
+\caption{Image classification results on ImageNet. Rectified convolution consistently improves the performance for different CNN architectures. (ResNeSt-50$\dagger$ is using $2s8x$ fast setting with 4.5GFLOPs and 26.4M params.)}
+\label{tab:rfconv}
+\end{table}
+

@@ -1,0 +1,162 @@
+\documentclass{article}
+
+% if you need to pass options to natbib, use, e.g.:
+\PassOptionsToPackage{numbers, compress}{natbib}
+% before loading neurips_2020
+
+% ready for submission
+% \usepackage{neurips_2020}
+
+% to compile a preprint version, e.g., for submission to arXiv, add add the
+% [preprint] option:
+%     \usepackage[preprint]{neurips_2020}
+
+% to compile a camera-ready version, add the [final] option, e.g.:
+%     \usepackage[final]{neurips_2020}
+
+% to avoid loading the natbib package, add option nonatbib:
+     \usepackage[nonatbib]{neurips_2020}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{array,multirow,graphicx}
+\usepackage{amsmath}
+\usepackage{arydshln}
+
+\usepackage{adjustbox}
+
+\usepackage{pgfplots}
+\usepackage{filecontents}
+\usepackage{pgfplotstable}
+
+\title{Rectified Convolution}
+
+% The \author macro works with any number of authors. There are two commands
+% used to separate the names and addresses of multiple authors: \And and \AND.
+%
+% Using \And between authors leaves it to LaTeX to determine where to break the
+% lines. Using \AND forces a line break at that point. So, if LaTeX puts 3 of 4
+% authors names on the first line, and the last on the second line, try using
+% \AND instead of \And before the third author name.
+
+\author{%
+  David S.~Hippocampus\thanks{Use footnote for providing further information
+    about author (webpage, alternative address)---\emph{not} for acknowledging
+    funding agencies.} \\
+  Department of Computer Science\\
+  Cranberry-Lemon University\\
+  Pittsburgh, PA 15213 \\
+  \texttt{hippo@cs.cranberry-lemon.edu} \\
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+  
+  We propose a simple modification of the convolutional layer by rectifying the feature-map activations, which alleviates the biases introduced via zero-padding. We refer to this modified version of convolution as {\em rectified convolution}. 
+  Comparing to standard convolutional layer, the rectified version almost introduces no extra computation cost or memory usage. 
+  Simply replacing the convolutional layer with the rectified version, the performances of CNNs are consistently improved, for example the top-1 accuracy of ResNet-50 on ImageNet is increased from 76.5\% to 77.1\%. %\footnote{Despite the improvement is small, this non-biased representation could be potentially helpful for the other applications (such as alleviating artifacts of output images from generative model, and improving boundaries of semantic segmentation).}
+  
+  
+\end{abstract}
+
+\section{Introduction}
+
+% CNN
+% large trianing crop size necessary?
+
+Convolutional neural network (CNN) has become the pre-dominant method in computer vision. 
+CNN learns the feature representation directly from the data by stacking the convolutional layers with non-linearities and downsampling. 
+There are a lot of research study on non-linearity functions and regularization methods, but the convolutional layer has stayed almost unchanged since LeNet~\cite{lecun1998gradient}. In this paper, we rethinking the boundary padding for convolutional layers. % and alleviates the biases introduced by zero padding.
+
+
+% . what is the correct padding value? boundary misalignment.
+Modern CNN architectures often follow a modular design which stacks multiple blocks in the same type at each stage~\cite{simonyan2014very,he2015deep}. 
+To preserve the same spatial resolution at each stage, zero-padding is used for convolutional layers. 
+However, the input feature-map is often ReLU activated with a non-zero mean. 
+As convolutional layers act in a sliding window manner, the resulting activations along the feature-map boundaries have padded zeros as the input, which makes it hard to estimate the batch statistics reliably using Batch Normalization. 
+In addition, the ratio between the boundary pixels and the interior pixels change with the input size, which may lead to discrepancy in the feature representation using different training and validation image resolutions~\cite{touvron2019fixing}. 
+
+
+For the image-to-image problem, the generative model often employs reflection-padding to alleviates the artifacts along the boundaries due to the padding~\cite{zhang2017multistyle}. 
+Despite its success in generative model, the reflection-padding is not suitable for image classification network due to introducing aliasing artifacts. 
+A question naturally arises {\it what is the idea padding value along the feature-map boundaries}? Dropout~\cite{srivastava2014dropout} randomly masks out ratio $p$ of the activations in the feature-map, and scales up the remaining activations by $\frac{1}{1-p}$ during the training. 
+And it serves as an identity layer during the inference to form a in-network ensemble of various modes during the training. Inspired by the dropout work, we treat the padded zeros as the missing pixels just like being masked out along the boundaries. 
+
+
+% Dropout. In-network ensemble. 
+% DropBlock
+% Boundary dropout
+
+\input{fig/fig1}
+
+
+As the main contribution of this paper, we introduce a {\it rectified convolution}, where the boundary values are rectified to alleviates the biases introduced by zero-padding. 
+We simply scale up the activation by a ratio of $\frac{kernel\_size}{valid\_pixels}$ to compensate the padded zeros, so that the expectation of the resulting feature-map mean is consistent across spatial locations. 
+Experimental results have shown that the proposed rectified convolution can improve the classification accuracy on ImageNet~\cite{imagenet} consistently for different CNN architectures. 
+We have also studied the behavior of using average aggregation mode instead of summation in the convolutional layers, and have achieved similar performance. 
+It demonstrates that the discrepancies are mainly caused by unbalanced valid pixel ratio instead of aggregation mechanism. 
+This modification is simple and can be easily implemented as an in-place operator using deep learning toolkit~\footnote{PyTorch implementation will be released upon publication.}, with almost no extra computation cost or memory usage.
+
+
+\section{Methods}
+
+\input{methods}
+
+\section{Experimental Results}
+
+In this section, we first compare the image classification performance if different CNN architectures~\cite{he2015deep,xie2016aggregated,zhang2020resnest,radosavovic2020designing} using rectified convolution and standard 2D convolution with zero-padding on ImageNet dataset~\cite{imagenet}, then study the different aggregation mode in the rectified convolution. 
+
+\input{fig/cls_results}
+
+\paragraph{Implementation Detail}
+
+For easily measure the improvement of rectified convolution, we train different network architectures in the same setting. 
+We use data parallel training on 8 GPUs with data sharding, where the mini-batch on each GPU is sampled from the corresponding shard without replacement. 
+For data augmentation, only standard transformations are used, including random size cropping between 0.08 to 1.0 of the original image area, random horizontal flip, color jittering and lighting changes. 
+After jittering, the image is subtracted by RGB mean and divided by the standard deviation before fed into the network. 
+Batch Normalization~\cite{ioffe2015batch} and ReLU activation function ~\cite{nair2010rectified} are used after each convolutional layer. 
+A mini-batch size of 512 is used with 64 image samples per GPU. 
+We use a learning rate of 0.2 and a weight decay of 0.0001. 
+No regularization method is used except for weight decay. The networks are trained on the ImageNet training set for 120 epochs with a cosine learning rate decay and evaluated on the validation set. 
+
+\paragraph{Rectified Convolution}
+
+We evaluate the performance of difference CNN models using rectified convolution or standard convolution with zero-padding, including ResNet~\cite{he2015deep}, ResNeXt~\cite{xie2016aggregated}, ResNeSt~\cite{zhang2020resnest} and RegNet~\cite{radosavovic2020designing}.
+The image classification top-1 accuracy on ImageNet~\cite{imagenet} validation set is reported in Table~\ref{tab:rfconv}. 
+We can see that the performances of these networks are boosted by $0.3-0.6\%$ on top-1 accuracy. 
+
+
+\paragraph{Sum mode v.s. Average Mode}
+Since rectified convolution mainly balances the activation scale regardless of the number of valid input elements, it is naturally to consider using average mode to aggregate the convolution instead of summation. 
+In this way, it is the same as averaging the responses only on the valid input elements:
+
+\begin{equation}
+    y[h, w]=\frac{1}{v[h, w]}\sum_{i=1}^m\sum_{j=1}^n k[i, j] \cdot \hat{x}[h-i, w-j] ,
+\label{eq:rfconv2}
+\end{equation}
+
+\input{fig/sumavg}
+
+$v[h,w]$ is the count of valid input at output location $h, w$ as in Equation~\ref{eq:rfconv}. We compare the performance of ResNet-50 on ImageNet, and the results are shown in Table~\ref{tab:sumavg}. We get very similar performance using different aggregation mode, which demonstrates that the biases are main introduced by inconsistent valid input elements between boundary and interior pixels instead of aggregation mode. 
+
+
+%\input{fig/train_plot}
+
+\section{Conclusion}
+In this paper, we propose a simple modification of standard convolutional layer with zero-padding by rectifying the activations with padded zero input along the boundaries. We refer to this modified version as rectified convolution. 
+The modification is simple yet efficient, and consistently improves the performance of CNNs without introducing extra computation or memory usage. 
+As the rectified convolution alleviates the aliasing along the feature-map boundaries, we expect it could be beneficial to generative models or segmentation CNNs. 
+
+\bibliographystyle{splncs04}
+\bibliography{egbib}
+
+\end{document}

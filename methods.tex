@@ -1,0 +1,60 @@
+
+%Convolution is a translation equivariant operation. 
+
+In this section, we use 2D convolution as an example to describe how rectified convolution works. The convolutional layer can be regarded as a 2D convolution if it has stride of 1 and a single input and output channel.
+
+\subsection{2D Convolution with Zero-padding}
+
+For a zero-padded 2D convolution with an input feature-map $x\in\mathbb{R}^{H\times W}$ and kernel $k\in\mathbb{R}^{m\times n}$, the value of the output feature-map $y\in\mathbb{R}^{H\times W}$ at the location $[h, w]$ can be represented as: 
+
+\begin{equation}
+    %\begin{aligned}
+    y[h, w]=\sum_{i=1}^m\sum_{j=1}^n k[i, j] \cdot \hat{x}[h-i, w-j] ,
+    %\end{aligned}
+\end{equation}
+
+where $\hat{x}[h, w]$ is the input pixel value at the location $[h, w]$ or padded zero:
+
+\begin{equation}
+    \hat{x}[h, w]=
+    \begin{cases}
+        x[h, w] & \text{if } \delta(x[h, w])\\
+        0, & \text{otherwise} ,
+    \end{cases}
+\end{equation}
+
+where $\delta()$ is an indicator function which indicates whether the pixel is valid (inside the input feature-map):
+
+\begin{equation}
+    \delta(x[h, w]) = (0\le h \le H) \land (0 \le w \le W). 
+\end{equation}
+
+
+\paragraph{Boundary Effects and Feature Discrepancy.}
+
+The convolution operation acts in a sliding window manner. The number of valid input pixels inside the convolutional kernel depends on the pixel location of the input, as shown in Figure~\ref{fig:rectified_conv}. 
+The input feature-map of convolutional layer in modern CNN is usually ReLU activated and has a non-zero mean. 
+The activations along the feature-map boundaries are biased due to zero padding. 
+In addition, the ratio of non-biased activations varies with different input sizes. For example 36 pixels are non-biased for input feature-map size of $7\times7$ using a $3\times3$ convolution kernel and resulting in a valid ratio of $36/49=0.735$, while the valid ratio for $6\times6$ is $0.694$. 
+
+Batch normalization~\cite{ioffe2015batch} is often used as a regularization after the convolutional layer in CNNs. The accumulation of batch statistics becomes difficult to establish due to the biased activations along the boundaries. Furthermore, the estimated batch statistics is conditional on the input resolution change, leading to the discrepancy in the learned network representation. 
+
+\subsection{Rectified Convolution}
+
+To tackle the difficulty of inconsistent number of valid input pixels along the feature-map boundaries, we simply scale up the resulting activation: 
+
+\begin{equation}
+    y[h, w]=\frac{mn}{v[h, w]}\sum_{i=1}^m\sum_{j=1}^n k[i, j] \cdot \hat{x}[h-i, w-j] ,
+\label{eq:rfconv}
+\end{equation}
+
+where $v[h, w]$ is the number of valid pixels residing inside the feature-map for the pixel location at $h, w$:
+
+\begin{equation}
+    v[h, w]=\sum_{i=1}^m\sum_{j=1}^n\mathbf{1}[(0\le h-i\le H) \land (0 \le w-j \le W)].
+\end{equation}
+
+
+%\paragraph{Feature-map Mean. }
+
+
